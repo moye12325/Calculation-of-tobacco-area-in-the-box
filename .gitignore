@@ -1,5 +1,10 @@
 # Project exclude paths
 /src/dataset/
+/src/result/
+/src/__pycache__/
 /tools/2000-4000_images/
 /tools/2000-4000_jsons/
 /tools/input_images/
+/qualityData/
+/src/model_version_dir/
+.idea/vcs.xml

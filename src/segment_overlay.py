@@ -1,85 +1,14 @@
+'''
+File: infer_and_save.py
+Author: moye12325
+Description: 1:将推理后的图片与原图叠放在一起
+Created: $TIME
+Version: v1.0
 
-## 叠放 推理图片与原始图片
-# import cv2
-# import os
-# import numpy as np
-#
-# # 原始图片文件夹
-# input_dirs = [
-#     './dataset/1-2000',
-#     './dataset/2001-4000',
-#     './dataset/4001-6000',
-#     './dataset/6001-8000',
-#     './dataset/8001-9663'
-# ]
-#
-# # 分割结果文件夹
-# segmentation_dirs = [
-#     './result/segmentation_results_V4_511/1-2000',
-#     './result/segmentation_results_V4_511/2001-4000',
-#     './result/segmentation_results_V4_511/4001-6000',
-#     './result/segmentation_results_V4_511/6001-8000',
-#     './result/segmentation_results_V4_511/8001-9663'
-# ]
-#
-# # 结果保存的文件夹
-# output_root = './result/overlay_results_V4_511'
-#
-#
-# os.makedirs(output_root, exist_ok=True)
-#
-# # 遍历所有文件夹
-# for input_dir, seg_dir in zip(input_dirs, segmentation_dirs):
-#     output_dir = os.path.join(output_root, os.path.basename(input_dir))
-#     os.makedirs(output_dir, exist_ok=True)  # 创建对应的输出目录
-#
-#     # 获取当前目录下的所有原始图片文件
-#     image_files = sorted([f for f in os.listdir(input_dir) if f.lower().endswith(('.png', '.jpg', '.jpeg'))])
-#
-#     for image_file in image_files:
-#         input_path = os.path.join(input_dir, image_file)
-#
-#         # 获取文件名（不带扩展名），如 "image_8880
-#
-#         file_name = os.path.splitext(image_file)[0]
-#
-#         # 构造分割图的文件名，例如 "image_8880_segmentation.png"
-#         seg_file = f"{file_name}_segmentation.png"
-#         seg_path = os.path.join(seg_dir, seg_file)
-#
-#         # 确保分割图片存在
-#         if not os.path.exists(seg_path):
-#             print(f"Warning: Segmentation file {seg_path} not found, skipping...")
-#             continue
-#
-#         # 读取原始图像
-#         original = cv2.imread(input_path)
-#         segmentation = cv2.imread(seg_path, cv2.IMREAD_GRAYSCALE)  # 读取分割图（灰度）
-#
-#         # 确保图片成功加载
-#         if original is None or segmentation is None:
-#             print(f"Error: Failed to load {input_path} or {seg_path}, skipping...")
-#             continue
-#
-#         # 调整分割图大小以匹配原图
-#         if original.shape[:2] != segmentation.shape[:2]:
-#             segmentation = cv2.resize(segmentation, (original.shape[1], original.shape[0]), interpolation=cv2.INTER_NEAREST)
-#
-#         # 转换为彩色图像，并将白色区域变为红色
-#         segmentation_colored = cv2.cvtColor(segmentation, cv2.COLOR_GRAY2BGR)
-#         segmentation_colored[np.where((segmentation_colored == [255, 255, 255]).all(axis=2))] = [0, 0, 255]  # 白色变红色
-#
-#         # 叠加分割结果（透明度 0.5）
-#         alpha = 0.5
-#         blended = cv2.addWeighted(original, 1 - alpha, segmentation_colored, alpha, 0)
-#
-#         # 保存结果
-#         output_path = os.path.join(output_dir, image_file)
-#         cv2.imwrite(output_path, blended)
-#
-#         print(f"Processed: {image_file} -> {output_path}")
-#
-# print("\n✅ Batch processing completed! All overlay images saved in './overlay_results/'")
+修改记录:
+Date        Author        Modification Content
+2025/2/19   moye12325     添加文件注释
+'''
 
 
 import cv2

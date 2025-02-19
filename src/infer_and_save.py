@@ -1,3 +1,15 @@
+'''
+File: infer_and_save.py
+Author: moye12325
+Description: 1:模型推理的代码，图像256*256
+Created: $TIME
+Version: v1.0
+
+修改记录:
+Date        Author        Modification Content
+2025/2/19   moye12325     添加文件注释
+'''
+
 import os
 import torch
 import numpy as np
@@ -14,6 +26,7 @@ from deprecated.sphinx import deprecated
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Using device: {device}")
 
+
 # ======================= 加载模型 =======================
 def load_model(model, path):
     """加载 PyTorch 预训练模型"""
@@ -26,6 +39,7 @@ def load_model(model, path):
     model.eval()
     print(f"Loaded model from: {path}")
     return model
+
 
 # ======================= 进行推理 =======================
 def segment_images(model, image_dir, output_dir, image_size=(256, 256)):
@@ -78,6 +92,7 @@ def segment_images(model, image_dir, output_dir, image_size=(256, 256)):
         except Exception as e:
             print(f"❌ Error processing {filename}: {e}")
 
+
 # 进行推理
 @deprecated
 def segment_images_old(model, image_dir, output_dir):
@@ -110,6 +125,7 @@ def segment_images_old(model, image_dir, output_dir):
             # 将类别值映射到 0-255 范围
             pred_img = prediction.cpu().numpy().astype(np.uint8) * 255
             Image.fromarray(pred_img).save(output_path)
+
 
 # 主执行代码
 if __name__ == "__main__":
