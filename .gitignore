@@ -1,0 +1,5 @@
+# Project exclude paths
+/src/dataset/
+/tools/2000-4000_images/
+/tools/2000-4000_jsons/
+/tools/input_images/
