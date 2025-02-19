@@ -1,5 +1,5 @@
 '''
-File: infer_and_save.py
+File: label_trans.py
 Author: moye12325
 Description: 1:labelme标签转换
 Created: $TIME

@@ -1,4 +1,14 @@
+'''
+File: label_trans.py
+Author: moye12325
+Description: 1:画出边框计算面积
+Created: $TIME
+Version: v1.0
 
+修改记录:
+Date        Author        Modification Content
+2025/2/19   moye12325     添加文件注释
+'''
 
 
 # 画边框算面积

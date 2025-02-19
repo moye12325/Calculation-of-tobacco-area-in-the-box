@@ -1,7 +1,7 @@
 '''
-File: infer_and_save.py
+File: onnx_validate.py
 Author: moye12325
-Description: 1:图像分割数据集类
+Description: onnx模型验证
 Created: $TIME
 Version: v1.0
 

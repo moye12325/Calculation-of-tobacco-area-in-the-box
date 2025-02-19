@@ -1,7 +1,7 @@
 '''
 File: infer_and_save.py
 Author: moye12325
-Description: 1:给推理后的图片加框，计算面积占比
+Description: 1:模型转换 pth转为onnx
 Created: $TIME
 Version: v1.0
 

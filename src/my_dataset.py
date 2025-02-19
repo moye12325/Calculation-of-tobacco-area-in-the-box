@@ -1,5 +1,5 @@
 '''
-File: infer_and_save.py
+File: my_dataset.py
 Author: moye12325
 Description: 1:图像分割数据集类
 Created: $TIME
