@@ -149,9 +149,9 @@ new_version = get_next_model_version(model_dir, params["model_version"])
 
 # 生成模型文件名
 
-input_size_str_1 = {params["image_size"][0]}
-input_size_str_2 = {params["image_size"][1]}
-input_size_str = f"{input_size_str_1}*{input_size_str_2}"
+input_size_str_width = {params["image_size"][0]}
+input_size_str_higth = {params["image_size"][1]}
+input_size_str = f"input_size_str_width*input_size_str_higth"
 # 获取损失函数和优化器缩写
 loss_abbr, optim_abbr = get_loss_optimizer_abbr(criterion, optimizer)
 model_filename = f"NestedUNet_{num_train_images}-{num_val_images}_{input_size_str}_{loss_abbr}_{optim_abbr}_{timestamp}_{new_version}.pth"
