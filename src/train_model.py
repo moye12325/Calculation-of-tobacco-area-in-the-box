@@ -10,7 +10,6 @@ Date        Author        Modification Content
 2025/2/19   moye12325     添加文件注释
 '''
 
-
 import os
 
 import torch
@@ -28,24 +27,35 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(device)
 
 # 定义超参数
-batch_size = 8
-learning_rate = 1e-4
-num_epochs = 200
-num_classes = 2
-patience = 10  # Early Stopping 的耐心值
-weight_decay = 1e-4  # AdamW 正则化参数
-image_size = (256, 256)  # 统一图像大小
+# batch_size = 8
+# learning_rate = 1e-4
+# num_epochs = 200
+# num_classes = 2
+# patience = 10  # Early Stopping 的耐心值
+# weight_decay = 1e-4  # AdamW 正则化参数
+# image_size = (256, 256)  # 统一图像大小
+
+# 超参数
+params = {
+    "batch_size": 8,
+    "learning_rate": 1e-4,
+    "num_epochs": 200,
+    "num_classes": 2,
+    "patience": 10,
+    "weight_decay": 1e-4,
+    "image_size": (256, 256)
+}
 
 # ======================= 3. 数据预处理 =======================
 transform_image = transforms.Compose([
-    transforms.Resize(image_size, interpolation=InterpolationMode.BILINEAR),
+    transforms.Resize(params["image_size"], interpolation=transforms.InterpolationMode.BILINEAR),
     transforms.ToTensor(),
 ])
 
 transform_mask = transforms.Compose([
-    transforms.Resize(image_size, interpolation=InterpolationMode.NEAREST),
+    transforms.Resize(params["image_size"], interpolation=transforms.InterpolationMode.NEAREST),
     transforms.ToTensor(),
-    lambda x: (x * 255).long().clamp(0, num_classes - 1)  # 还原类别索引
+    lambda x: (x * 255).long().clamp(0, params["num_classes"] - 1)
 ])
 
 # ======================= 4. 加载数据 =======================
@@ -61,15 +71,15 @@ train_files, val_files = train_test_split(image_files, test_size=0.2, random_sta
 train_dataset = ImageSegmentationDataset(image_dir, mask_dir, train_files, transform_image, transform_mask)
 val_dataset = ImageSegmentationDataset(image_dir, mask_dir, val_files, transform_image, transform_mask)
 
-train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
-val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=4)
+train_loader = DataLoader(train_dataset, batch_size=params["batch_size"], shuffle=True, num_workers=4)
+val_loader = DataLoader(val_dataset, batch_size=params["batch_size"], shuffle=False, num_workers=4)
 
 print(f"Training samples: {len(train_dataset)}, Validation samples: {len(val_dataset)}")
 
 # ======================= 5. 初始化模型 =======================
-model = NestedUNet(num_classes=num_classes, input_channels=3).to(device)
+model = NestedUNet(num_classes=params["num_classes"], input_channels=3).to(device)
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
+optimizer = optim.AdamW(model.parameters(), lr=params["learning_rate"], weight_decay=params["weight_decay"])
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=5)
 
 # ======================= 6. 早停策略 =======================
@@ -89,14 +99,14 @@ class EarlyStopping:
 
         return self.counter >= self.patience
 
-early_stopping = EarlyStopping(patience=patience)
+early_stopping = EarlyStopping(patience=params["patience"])
 
 
 # ======================= 7. 训练函数 =======================
 def train():
     best_val_loss = float("inf")
 
-    for epoch in range(num_epochs):
+    for epoch in range(params["num_epochs"]):
         # 训练模式
         model.train()
         epoch_loss = 0.0
@@ -142,7 +152,7 @@ def train():
         # 学习率调度
         scheduler.step(avg_val_loss)
 
-        print(f"Epoch [{epoch + 1}/{num_epochs}] | Train Loss: {avg_train_loss:.4f} | Val Loss: {avg_val_loss:.4f}")
+        print(f"Epoch [{epoch + 1}/{params['num_epochs']}] | Train Loss: {avg_train_loss:.4f} | Val Loss: {avg_val_loss:.4f}")
 
         # ======================= 9. 早停机制 =======================
         if avg_val_loss < best_val_loss:
@@ -153,6 +163,7 @@ def train():
         if early_stopping(avg_val_loss):
             print("Early stopping triggered!")
             break
+
 
 # ======================= 10. 训练模型 =======================
 if __name__ == "__main__":

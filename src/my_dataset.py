@@ -41,20 +41,19 @@ class ImageSegmentationDataset:
         return image, mask.squeeze(0)  # 确保 mask 形状为 [H, W]
 
     def __len__(self):
-        # 返回数据集中图像文件的数量
         return len(self.file_list)
 
 # ======================= 修正 `transform_mask` =======================
-image_size = (256, 256)
-num_classes = 2  # 确保 `num_classes` 正确
-
-transform_image = transforms.Compose([
-    transforms.Resize(image_size, interpolation=InterpolationMode.BILINEAR),
-    transforms.ToTensor(),
-])
-
-transform_mask = transforms.Compose([
-    transforms.Resize(image_size, interpolation=InterpolationMode.NEAREST),
-    transforms.ToTensor(),
-    lambda x: (x * 255).long().clamp(0, num_classes - 1)  # ✅ 限制到 `[0, num_classes-1]`
-])
+# image_size = (256, 256)
+# num_classes = 2  # 确保 `num_classes` 正确
+#
+# transform_image = transforms.Compose([
+#     transforms.Resize(image_size, interpolation=InterpolationMode.BILINEAR),
+#     transforms.ToTensor(),
+# ])
+#
+# transform_mask = transforms.Compose([
+#     transforms.Resize(image_size, interpolation=InterpolationMode.NEAREST),
+#     transforms.ToTensor(),
+#     lambda x: (x * 255).long().clamp(0, num_classes - 1)  # ✅ 限制到 `[0, num_classes-1]`
+# ])
