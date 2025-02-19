@@ -9,7 +9,8 @@ Version: v1.0
 Date        Author        Modification Content
 2025/2/19   moye12325     添加文件注释
 '''
-
+from datetime import datetime
+import re
 import os
 
 import torch
@@ -20,20 +21,10 @@ from torchvision import transforms
 from my_dataset import ImageSegmentationDataset  # 自定义数据集
 from NestedUNet import NestedUNet  # 模型定义文件
 from sklearn.model_selection import train_test_split
-from torchvision.transforms import InterpolationMode
 
 # ======================= 1. 设备配置 =======================
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(device)
-
-# 定义超参数
-# batch_size = 8
-# learning_rate = 1e-4
-# num_epochs = 200
-# num_classes = 2
-# patience = 10  # Early Stopping 的耐心值
-# weight_decay = 1e-4  # AdamW 正则化参数
-# image_size = (256, 256)  # 统一图像大小
 
 # 超参数
 params = {
@@ -43,7 +34,8 @@ params = {
     "num_classes": 2,
     "patience": 10,
     "weight_decay": 1e-4,
-    "image_size": (256, 256)
+    "image_size": (256, 256),
+    "model_version": "V4"  # 🔴 手动更改大版本号（v1 → v2）
 }
 
 # ======================= 3. 数据预处理 =======================
@@ -102,6 +94,70 @@ class EarlyStopping:
 early_stopping = EarlyStopping(patience=params["patience"])
 
 
+# ======================= 版本管理函数 =======================
+def get_next_model_version(model_dir, base_version):
+    """
+    自动增加小版本号，例如：
+    - 当前目录下 `v1.0` 存在，则生成 `v1.1`
+    - `v1.1` 存在，则生成 `v1.2`
+    """
+    existing_versions = []
+
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
+
+    for filename in os.listdir(model_dir):
+        match = re.search(rf"{base_version}\.(\d+)", filename)
+        if match:
+            existing_versions.append(int(match.group(1)))
+
+    if existing_versions:
+        new_version = f"{base_version}.{max(existing_versions) + 1}"
+    else:
+        new_version = f"{base_version}.0"
+
+    return new_version
+
+def get_loss_optimizer_abbr(loss_fn, optimizer):
+    """获取损失函数和优化器的缩写"""
+    loss_abbr = {
+        "CrossEntropyLoss": "CE",
+        "MSELoss": "MSE",
+        "DiceLoss": "Dice",
+        "BCELoss": "BCE"
+    }.get(loss_fn.__class__.__name__, "Loss")
+
+    optim_abbr = {
+        "SGD": "SGD",
+        "Adam": "Adam",
+        "AdamW": "AdamW",
+        "RMSprop": "RMS"
+    }.get(optimizer.__class__.__name__, "Opt")
+
+    return loss_abbr, optim_abbr
+
+#======================= 生成时间戳（精确到小时和分钟）
+timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
+
+# 获取训练集和验证集的图片数量
+num_train_images = len(train_dataset)
+num_val_images = len(val_dataset)
+
+# 计算新的版本号
+model_dir = "./model_version_dir"
+new_version = get_next_model_version(model_dir, params["model_version"])
+
+# 生成模型文件名
+
+input_size_str_1 = {params["image_size"][0]}
+input_size_str_2 = {params["image_size"][1]}
+input_size_str = f"{input_size_str_1}*{input_size_str_2}"
+# 获取损失函数和优化器缩写
+loss_abbr, optim_abbr = get_loss_optimizer_abbr(criterion, optimizer)
+model_filename = f"NestedUNet_{num_train_images}-{num_val_images}_{input_size_str}_{loss_abbr}_{optim_abbr}_{timestamp}_{new_version}.pth"
+# model_filename = f"NestedUNet_{num_train_images}-{num_val_images}_256x256_CE_AdamW_{timestamp}_{new_version}.pth"
+model_path = os.path.join(model_dir, model_filename)
+
 # ======================= 7. 训练函数 =======================
 def train():
     best_val_loss = float("inf")
@@ -157,7 +213,7 @@ def train():
         # ======================= 9. 早停机制 =======================
         if avg_val_loss < best_val_loss:
             best_val_loss = avg_val_loss
-            torch.save(model.state_dict(), "./model_version_dir/best_model_V4_511.pth")  # 仅保存最佳模型
+            torch.save(model.state_dict(), model_path)  # 仅保存最佳模型
             print("Best model saved!")
 
         if early_stopping(avg_val_loss):
