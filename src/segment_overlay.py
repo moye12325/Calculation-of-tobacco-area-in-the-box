@@ -9,34 +9,34 @@ Version: v1.0
 Date        Author        Modification Content
 2025/2/19   moye12325     添加文件注释
 '''
-
+import glob
 
 import cv2
 import os
 import numpy as np
 import concurrent.futures  # 线程池
+from config import Config
+
+# 自动获取最新模型文件名
+model_dir = Config.DATA_PATHS['model_save_dir']
+model_files = glob.glob(os.path.join(model_dir, "*.pth"))
+if not model_files:
+    raise FileNotFoundError(f"No trained models found in {model_dir}")
+
+# 按修改时间排序获取最新模型文件名
+model_files.sort(key=os.path.getmtime, reverse=True)
+model_filename = os.path.basename(model_files[0])
+
+# 动态生成保存路径
+segmentation_base_dir = f"./result/segmentation_results_{os.path.splitext(model_filename)[0]}"
+overlay_base_dir = f"./result/overlay_results_{os.path.splitext(model_filename)[0]}"
+print(f"📂 Expected output to ➡️ {overlay_base_dir}")
+
+# 创建基础输出目录
+os.makedirs(overlay_base_dir, exist_ok=True)
 
 # 原始图片文件夹
-input_dirs = [
-    './dataset/1-2000',
-    './dataset/2001-4000',
-    './dataset/4001-6000',
-    './dataset/6001-8000',
-    './dataset/8001-9663'
-]
-
-# 分割结果文件夹
-segmentation_dirs = [
-    './result/segmentation_results_V4_511/1-2000',
-    './result/segmentation_results_V4_511/2001-4000',
-    './result/segmentation_results_V4_511/4001-6000',
-    './result/segmentation_results_V4_511/6001-8000',
-    './result/segmentation_results_V4_511/8001-9663'
-]
-
-# 结果保存的文件夹
-output_root = './result/overlay_results_V4_511'
-os.makedirs(output_root, exist_ok=True)
+input_dirs = Config.DATA_PATHS['test_image_dirs']
 
 # 处理单张图片的函数
 def process_image(input_dir, seg_dir, output_dir, image_file):
@@ -82,8 +82,10 @@ def process_image(input_dir, seg_dir, output_dir, image_file):
     print(f"Processed: {image_file} -> {output_path}")
 
 # 遍历所有文件夹，并行处理
-for input_dir, seg_dir in zip(input_dirs, segmentation_dirs):
-    output_dir = os.path.join(output_root, os.path.basename(input_dir))
+for input_dir in input_dirs:
+    # 动态生成对应的分割结果目录和叠加结果目录
+    seg_dir = os.path.join(segmentation_base_dir, os.path.basename(input_dir))
+    output_dir = os.path.join(overlay_base_dir, os.path.basename(input_dir))
     os.makedirs(output_dir, exist_ok=True)  # 创建对应的输出目录
 
     # 获取当前目录下的所有原始图片文件
@@ -94,4 +96,19 @@ for input_dir, seg_dir in zip(input_dirs, segmentation_dirs):
         futures = [executor.submit(process_image, input_dir, seg_dir, output_dir, image_file) for image_file in image_files]
         concurrent.futures.wait(futures)  # 等待所有任务完成
 
-print("\n✅ Batch processing completed! All overlay images saved in './overlay_results/' 🚀")
+print(f"\n✅ Batch processing completed! All overlay images saved in '{overlay_base_dir}' 🚀")
+
+# # 遍历所有文件夹，并行处理
+# for input_dir, seg_dir in zip(input_dirs, segmentation_dirs):
+#     output_dir = os.path.join(output_root, os.path.basename(input_dir))
+#     os.makedirs(output_dir, exist_ok=True)  # 创建对应的输出目录
+#
+#     # 获取当前目录下的所有原始图片文件
+#     image_files = sorted([f for f in os.listdir(input_dir) if f.lower().endswith(('.png', '.jpg', '.jpeg'))])
+#
+#     # 使用多线程处理
+#     with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+#         futures = [executor.submit(process_image, input_dir, seg_dir, output_dir, image_file) for image_file in image_files]
+#         concurrent.futures.wait(futures)  # 等待所有任务完成
+#
+# print("\n✅ Batch processing completed! All overlay images saved in './overlay_results/' 🚀")
