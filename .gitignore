@@ -9,3 +9,5 @@
 /src/model_version_dir/
 .idea/vcs.xml
 *.iml
+.idea
+.idea/
