@@ -12,13 +12,12 @@ Date        Author        Modification Content
 
 import os
 import torch
-import numpy as np
+import glob
 from PIL import Image
 from torchvision import transforms
 from torchvision.transforms import InterpolationMode
 from NestedUNet import NestedUNet
-import warnings
-from deprecated.sphinx import deprecated
+from config import Config
 
 ## 推理代码
 
@@ -95,24 +94,36 @@ def segment_images(model, image_dir, output_dir, image_size=(256, 256)):
 # 主执行代码
 if __name__ == "__main__":
 
-    model_path = './model_version_dir/best_model_V4_511.pth'
+    # 自动获取最新模型
+    model_dir = Config.DATA_PATHS['model_save_dir']
+    model_files = glob.glob(os.path.join(model_dir, "*.pth"))
+
+    if not model_files:
+        raise FileNotFoundError(f"No trained models found in {model_dir}")
+
+    # 按修改时间排序获取最新模型
+    model_files.sort(key=os.path.getmtime, reverse=True)
+    model_path = model_files[0]
 
     # ✅ 确保 `num_classes` 和 `input_channels` 设置正确
     model = load_model(model_path)
 
-    # 定义输入目录和输出目录
-    input_dirs = [
-        './dataset/1-2000',
-        './dataset/2001-4000',
-        './dataset/4001-6000',
-        './dataset/6001-8000',
-        './dataset/8001-9663'
-    ]
+    print(f"✅ Load model ➡️ {model_path}")
 
-    base_output_dir = './result/segmentation_results_V4_511_test'  # 基础输出结果目录
+    # 定义输入目录和输出目录
+    input_dirs = Config.DATA_PATHS['test_image_dirs']
+
+    # base_output_dir = './result/segmentation_results_V4_511'  # 基础输出结果目录
+
+    # 从模型文件名中提取信息
+    model_filename = os.path.basename(model_path)
+    base_output_dir = f"./result/segmentation_results_{os.path.splitext(model_filename)[0]}"
+    print(f"📂 Expected output to ➡️ {base_output_dir}")
+
+    image_size = Config.IMAGE_SIZE
 
     for input_dir in input_dirs:
         output_dir = os.path.join(base_output_dir, os.path.basename(input_dir))
-        segment_images(model, input_dir, output_dir)
+        segment_images(model, input_dir, output_dir, image_size)
 
     print(f"Segmentation results saved to: {base_output_dir}")

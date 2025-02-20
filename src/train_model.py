@@ -12,7 +12,7 @@ Date        Author        Modification Content
 from datetime import datetime
 import re
 import os
-
+from config import Config
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -28,14 +28,14 @@ print(device)
 
 # 超参数
 params = {
-    "batch_size": 8,
-    "learning_rate": 1e-4,
-    "num_epochs": 200,
-    "num_classes": 2,
-    "patience": 10,
-    "weight_decay": 1e-4,
-    "image_size": (256, 256),
-    "model_version": "V4"  # 🔴 手动更改大版本号（v1 → v2）
+    "batch_size": Config.TRAIN_PARAMS['batch_size'],
+    "learning_rate": Config.TRAIN_PARAMS['learning_rate'],
+    "num_epochs": Config.TRAIN_PARAMS['num_epochs'],
+    "num_classes": Config.TRAIN_PARAMS['num_classes'],
+    "patience": Config.TRAIN_PARAMS['patience'],
+    "weight_decay": Config.TRAIN_PARAMS['weight_decay'],
+    "image_size": Config.IMAGE_SIZE,
+    "model_version": Config.TRAIN_PARAMS['model_version']  # 🔴 手动更改大版本号（v1 → v2）
 }
 
 # ======================= 3. 数据预处理 =======================
@@ -51,8 +51,8 @@ transform_mask = transforms.Compose([
 ])
 
 # ======================= 4. 加载数据 =======================
-image_dir = "./dataset/train/images"
-mask_dir = "./dataset/train/masks"
+image_dir = Config.DATA_PATHS['train_image_dir']
+mask_dir = Config.DATA_PATHS['train_mask_dir']
 
 # 获取所有图像文件
 image_files = sorted(os.listdir(image_dir))
@@ -144,18 +144,18 @@ num_train_images = len(train_dataset)
 num_val_images = len(val_dataset)
 
 # 计算新的版本号
-model_dir = "./model_version_dir"
+model_dir = Config.DATA_PATHS['model_save_dir']
+# model_dir = "./model_version_dir"
 new_version = get_next_model_version(model_dir, params["model_version"])
 
 # 生成模型文件名
 
-input_size_str_width = {params["image_size"][0]}
-input_size_str_higth = {params["image_size"][1]}
-input_size_str = f"input_size_str_width*input_size_str_higth"
+# 生成输入尺寸字符串（修正 {} 问题）
+input_size_str = f"{params['image_size'][0]}x{params['image_size'][1]}"
 # 获取损失函数和优化器缩写
 loss_abbr, optim_abbr = get_loss_optimizer_abbr(criterion, optimizer)
+# 生成模型文件名
 model_filename = f"NestedUNet_{num_train_images}-{num_val_images}_{input_size_str}_{loss_abbr}_{optim_abbr}_{timestamp}_{new_version}.pth"
-# model_filename = f"NestedUNet_{num_train_images}-{num_val_images}_256x256_CE_AdamW_{timestamp}_{new_version}.pth"
 model_path = os.path.join(model_dir, model_filename)
 
 # ======================= 7. 训练函数 =======================
@@ -214,7 +214,7 @@ def train():
         if avg_val_loss < best_val_loss:
             best_val_loss = avg_val_loss
             torch.save(model.state_dict(), model_path)  # 仅保存最佳模型
-            print("Best model saved!")
+            print("✅ Best model saved! " + model_filename)
 
         if early_stopping(avg_val_loss):
             print("Early stopping triggered!")
