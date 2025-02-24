@@ -15,28 +15,51 @@ Date        Author        Modification Content
 import cv2
 import numpy as np
 import os
+from config import Config
+import glob
 
-# 分割结果文件夹（输入）
-segmentation_dirs = [
-    './result/segmentation_results_V4_511/1-2000',
-    './result/segmentation_results_V4_511/2001-4000',
-    './result/segmentation_results_V4_511/4001-6000',
-    './result/segmentation_results_V4_511/6001-8000',
-    './result/segmentation_results_V4_511/8001-9663'
-]
+# 自动获取最新模型文件名
+model_dir = Config.DATA_PATHS['model_save_dir']
+model_files = glob.glob(os.path.join(model_dir, "*.pth"))
 
-# 计算结果保存的根目录
-output_root = "./result/calculated_results_V4_511"
-os.makedirs(output_root, exist_ok=True)  # 确保根目录存在
+if not model_files:
+    raise FileNotFoundError(f"No trained models found in {model_dir}")
+
+# 按修改时间排序获取最新模型文件名
+model_files.sort(key=os.path.getmtime, reverse=True)
+model_filename = os.path.basename(model_files[0])
+
+# 动态生成保存路径
+segmentation_base_dir = f"./result/segmentation_results_{os.path.splitext(model_filename)[0]}"
+calculated_base_dir = f"./result/calculated_results_{os.path.splitext(model_filename)[0]}"
+
+# 创建基础输出目录
+os.makedirs(calculated_base_dir, exist_ok=True)
+
+# # 分割结果文件夹（输入）
+# segmentation_dirs = [
+#     './result/segmentation_results_2025-02-20_09-08/1-2000',
+#     './result/segmentation_results_2025-02-20_09-08/2001-4000',
+#     './result/segmentation_results_2025-02-20_09-08/4001-6000',
+#     './result/segmentation_results_2025-02-20_09-08/6001-8000',
+#     './result/segmentation_results_2025-02-20_09-08/8001-9663'
+# ]
+#
+# # 计算结果保存的根目录
+# output_root = "./result/calculated_results_2025-02-20_09-08"
+# os.makedirs(output_root, exist_ok=True)  # 确保根目录存在
 
 # 预定义的ROI边界框（可修改）
 x, y, w, h = 68, 0, 180, 256
 bounding_box_area = w * h  # 计算ROI区域的总像素数
 
+# 动态获取所有分割文件夹
+segmentation_dirs = [os.path.join(segmentation_base_dir, os.path.basename(dir_path)) for dir_path in Config.DATA_PATHS['test_image_dirs']]
+
 # 遍历所有分割文件夹
 for seg_dir in segmentation_dirs:
     # 计算对应的输出目录
-    output_dir = os.path.join(output_root, os.path.basename(seg_dir))
+    output_dir = os.path.join(calculated_base_dir, os.path.basename(seg_dir))
     os.makedirs(output_dir, exist_ok=True)  # 确保输出目录存在
 
     # 获取所有分割图片文件（假设是 PNG 格式）
@@ -85,4 +108,4 @@ for seg_dir in segmentation_dirs:
         print(f"Processed {image_filename}: White Pixel Ratio = {white_pixel_ratio:.4f} ({white_pixel_ratio * 100:.2f}%)")
         print(f"Saved to: {output_path}")
 
-print("\n✅ Batch processing completed! 🚀")
+print(f"\n✅ Batch processing completed! All calculated images saved in '{calculated_base_dir}' 🚀")
