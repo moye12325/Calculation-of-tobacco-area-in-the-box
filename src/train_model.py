@@ -217,7 +217,7 @@ def train():
             print("✅ Best model saved! " + model_filename)
 
         if early_stopping(avg_val_loss):
-            print("Early stopping triggered!")
+            print("✔✔✔✔✔ Early stopping triggered!")
             break
 
 
