@@ -30,9 +30,9 @@ class Config:
 
     # ======================= 训练参数 =======================
     TRAIN_PARAMS = {
-        "batch_size": 8,
+        "batch_size": 32,
         "learning_rate": 1e-4,
-        "num_epochs": 200,
+        "num_epochs": 1000,
         "num_classes": 2,
         "patience": 10,
         "weight_decay": 1e-4,
