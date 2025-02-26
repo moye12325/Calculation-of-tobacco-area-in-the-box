@@ -16,10 +16,17 @@ from torchvision import transforms
 import random
 import torchvision.transforms.functional as TF
 from config import Config
+import numpy as np
+import cv2
+import albumentations as A
 
 # 新建联合数据增强函数（确保图像和 mask 同步增强）
 # 新增参数 crop_size，如果传入则进行随机裁剪
 def joint_transforms(image, mask, image_size, crop_size=None):
+    """
+    原始联合数据增强
+    使用随机翻转、随机旋转、随机裁剪和统一 Resize 操作
+    """
     # 随机水平翻转
     if random.random() > 0.5:
         image = TF.hflip(image)
@@ -43,16 +50,72 @@ def joint_transforms(image, mask, image_size, crop_size=None):
     mask = TF.resize(mask, image_size, interpolation=transforms.InterpolationMode.NEAREST)
     return image, mask
 
+def joint_transforms_albu(image, mask, image_size, crop_size=None):
+    """
+    新增联合数据增强函数
+    使用 Albumentations 实现更多数据增强操作，同时对图像和 mask 保持同步变换
+
+    参数:
+      image: PIL Image (RGB)
+      mask:  PIL Image (单通道)
+      image_size: 目标尺寸 (height, width)
+      crop_size: 随机裁剪尺寸，如果传入则优先执行随机裁剪
+    """
+    # 将 PIL Image 转换为 NumPy 数组
+    image_np = np.array(image)
+    mask_np = np.array(mask)
+
+    # 构建增强流水线列表
+    transform_list = [
+        A.HorizontalFlip(p=0.5),
+        A.VerticalFlip(p=0.5),
+        A.RandomRotate90(p=0.5),
+        A.ShiftScaleRotate(shift_limit=0.0625, scale_limit=0.1, rotate_limit=45, p=0.5),
+        A.Perspective(scale=(0.05, 0.1), p=0.5),
+        # 注意：新版中 alpha_affine 参数已移除，此处不再传入
+        A.ElasticTransform(alpha=1, sigma=50, p=0.5)
+    ]
+
+    # 如果指定裁剪尺寸，执行随机裁剪
+    if crop_size is not None:
+        transform_list.append(A.RandomCrop(height=crop_size[0], width=crop_size[1], p=1.0))
+
+    # 添加颜色和亮度调整（仅对图像有效）
+    transform_list.append(A.OneOf([
+        A.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
+        A.RandomBrightnessContrast(brightness_limit=0.2, contrast_limit=0.2)
+    ], p=0.5))
+
+    # 添加噪声和模糊操作
+    transform_list.extend([
+        A.GaussianBlur(blur_limit=(3, 7), p=0.3),
+        A.GaussNoise(var_limit=(10.0, 50.0), p=0.3)
+    ])
+
+    # 最后统一 Resize 到目标尺寸（image 使用双线性插值）
+    transform_list.append(A.Resize(height=image_size[0], width=image_size[1],
+                                   interpolation=cv2.INTER_LINEAR, always_apply=True))
+
+    # 组合所有转换，禁用尺寸检查（若你确定 image 与 mask 尺寸在前面已对齐）
+    transform = A.Compose(transform_list, additional_targets={'mask': 'mask'}, is_check_shapes=False)
+    augmented = transform(image=image_np, mask=mask_np)
+
+    # 转换回 PIL Image 后返回
+    image_aug = Image.fromarray(augmented['image'])
+    mask_aug = Image.fromarray(augmented['mask'])
+    return image_aug, mask_aug
 
 class ImageSegmentationDataset:
-    def __init__(self, image_dir, mask_dir, file_list, transform_image=None, transform_mask=None, joint_transform=None, image_size=None):
+    def __init__(self, image_dir, mask_dir, file_list, transform_image=None, transform_mask=None,
+                 joint_transform=None, image_size=None, crop_size=None):
         self.image_dir = image_dir
         self.mask_dir = mask_dir
         self.file_list = file_list
         self.transform_image = transform_image
         self.transform_mask = transform_mask
-        self.joint_transform = joint_transform  # 新增联合数据增强
-        self.image_size = image_size  # 为了在 joint_transform 中使用
+        self.joint_transform = joint_transform  # 联合数据增强函数
+        self.image_size = image_size           # 目标尺寸
+        self.crop_size = crop_size             # 随机裁剪尺寸
 
     def __getitem__(self, idx):
         image_file = self.file_list[idx]
@@ -61,11 +124,11 @@ class ImageSegmentationDataset:
         mask_path = os.path.join(self.mask_dir, mask_file)
 
         image = Image.open(image_path).convert("RGB")
-        mask = Image.open(mask_path).convert("L")  # 单通道
+        mask = Image.open(mask_path).convert("L")  # 单通道 mask
 
-        # 如果定义了联合变换，先对原始 PIL Image 进行操作
+        # 根据是否设置联合数据增强选择处理方式
         if self.joint_transform:
-            image, mask = self.joint_transform(image, mask, Config.IMAGE_SIZE)
+            image, mask = self.joint_transform(image, mask, self.image_size, crop_size=self.crop_size)
 
         if self.transform_image:
             image = self.transform_image(image)

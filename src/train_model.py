@@ -18,7 +18,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision import transforms
-from my_dataset import ImageSegmentationDataset, joint_transforms  # 自定义数据集
+from my_dataset import ImageSegmentationDataset, joint_transforms, joint_transforms_albu  # 新增 joint_transforms_albu
 from NestedUNet import NestedUNet  # 模型定义文件
 from sklearn.model_selection import train_test_split
 from functools import partial
@@ -37,9 +37,17 @@ params = {
     "weight_decay": Config.TRAIN_PARAMS['weight_decay'],
     "image_size": Config.IMAGE_SIZE,
     "model_version": Config.TRAIN_PARAMS['model_version'],  # 🔴 手动更改大版本号（v1 → v2）
-    # 新增随机裁剪尺寸（这里设置为目标尺寸的 80%，你可以根据需求调整）
-    "crop_size": (int(Config.IMAGE_SIZE[0] * 0.8), int(Config.IMAGE_SIZE[1] * 0.8))
+    # 新增随机裁剪尺寸（目标尺寸的 80%）
+    "crop_size": (int(Config.IMAGE_SIZE[0] * 0.8), int(Config.IMAGE_SIZE[1] * 0.8)),
+    # 新增开关：是否使用新版的丰富联合数据增强
+    "use_advanced_joint_augmentation": True
 }
+
+# 根据开关选择联合数据增强方式
+if params.get("use_advanced_joint_augmentation", False):
+    joint_transform_fn = joint_transforms_albu
+else:
+    joint_transform_fn = joint_transforms
 
 # ======================= 3. 数据预处理 =======================
 # -------------- 训练集预处理（先使用联合数据增强，再进行 ToTensor 与归一化） --------------
@@ -58,7 +66,7 @@ train_transform_mask = transforms.Compose([
     lambda x: (x * 255).long().clamp(0, params["num_classes"] - 1)
 ])
 
-# -------------- 验证集预处理（需要 Resize 到固定尺寸，再进行 ToTensor 与归一化） --------------
+# -------------- 验证集预处理（直接使用 Resize, ToTensor 与归一化） --------------
 val_transform_image = transforms.Compose([
     transforms.Resize(params["image_size"], interpolation=transforms.InterpolationMode.BILINEAR),
     transforms.ToTensor(),
@@ -85,19 +93,20 @@ train_files, val_files = train_test_split(image_files, test_size=0.2, random_sta
 # val_dataset = ImageSegmentationDataset(image_dir, mask_dir, val_files, transform_image, transform_mask)
 
 
-# 创建数据集：训练集启用联合增强（包括 Resize），验证集则采用包含 Resize 的 transform
+# 创建数据集：训练集启用联合数据增强（由 joint_transform_fn 控制），验证集仅使用预处理转换
 train_dataset = ImageSegmentationDataset(
     image_dir, mask_dir, train_files,
     transform_image=train_transform_image,
     transform_mask=train_transform_mask,
-    joint_transform=joint_transforms,
-    image_size=params["image_size"]
+    joint_transform=joint_transform_fn,
+    image_size=params["image_size"],
+    # crop_size=params["crop_size"]
 )
 val_dataset = ImageSegmentationDataset(
     image_dir, mask_dir, val_files,
     transform_image=val_transform_image,
     transform_mask=val_transform_mask
-    # 验证集未传入 joint_transform，直接在 transform 中完成 Resize
+    # 验证集不使用联合增强，直接由 transform 完成 Resize
 )
 
 train_loader = DataLoader(train_dataset, batch_size=params["batch_size"], shuffle=True, num_workers=4)
