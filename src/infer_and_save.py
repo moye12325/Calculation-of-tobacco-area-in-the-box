@@ -19,22 +19,22 @@ from torchvision.transforms import InterpolationMode
 from NestedUNet import NestedUNet
 from config import Config
 
-## 推理代码
-
 # ======================= 设备配置 =======================
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Using device: {device}")
 
 # ======================= 图像预处理 =======================
-def get_transform(image_size=(256, 256)):
-    """返回图像预处理 transform"""
+def get_transform(image_size=Config.IMAGE_SIZE):
+    """返回图像预处理 transform，包含 Resize、ToTensor 与 Normalize"""
     return transforms.Compose([
         transforms.Resize(image_size, interpolation=InterpolationMode.BILINEAR),
-        transforms.ToTensor()
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                             std=[0.229, 0.224, 0.225])
     ])
 
 # ======================= 加载模型 =======================
-def load_model(model_path, num_classes=2, input_channels=3):
+def load_model(model_path, num_classes=Config.TRAIN_PARAMS['num_classes'], input_channels=3):
     """加载 PyTorch 预训练模型"""
     if not os.path.exists(model_path):
         raise FileNotFoundError(f"Model file not found: {model_path}")
@@ -45,9 +45,8 @@ def load_model(model_path, num_classes=2, input_channels=3):
     print(f"✅ Model loaded from: {model_path}")
     return model
 
-
 # ======================= 进行推理 =======================
-def segment_images(model, image_dir, output_dir, image_size=(256, 256)):
+def segment_images(model, image_dir, output_dir, image_size=Config.IMAGE_SIZE):
     """
     读取 `image_dir` 中的所有图片，进行分割，并保存到 `output_dir`
     """
@@ -69,12 +68,13 @@ def segment_images(model, image_dir, output_dir, image_size=(256, 256)):
         filepath = os.path.join(image_dir, filename)
 
         try:
-            # 读取图像 + 维度扩展
+            # 读取图像，并转换为 RGB
             image = Image.open(filepath).convert('RGB')
+            # 将预处理后的图像扩展为 batch 格式
             input_tensor = transform(image).unsqueeze(0).to(device)
 
             with torch.no_grad():
-                # ✅ 进行推理 GPU 上计算 `argmax`
+                # 推理阶段，进行前向传播，输出为 [batch, num_classes, H, W]
                 outputs = model(input_tensor)
                 prediction = torch.argmax(outputs, dim=1).squeeze(0)
 
@@ -82,8 +82,8 @@ def segment_images(model, image_dir, output_dir, image_size=(256, 256)):
             output_filename = f"{os.path.splitext(filename)[0]}_segmentation.png"
             output_path = os.path.join(output_dir, output_filename)
 
-            # ✅ 直接转换 `uint8`
-            pred_img = prediction.byte().cpu().numpy() * 255
+            # 注意：这里假设分割为二值，也可以根据具体类别进行不同映射
+            pred_img = (prediction.byte().cpu().numpy() * 255)
             Image.fromarray(pred_img).save(output_path)
 
             print(f"✔ Processed: {filename} → {output_dir} {output_filename}")
@@ -113,9 +113,7 @@ if __name__ == "__main__":
     # 定义输入目录和输出目录
     input_dirs = Config.DATA_PATHS['test_image_dirs']
 
-    # base_output_dir = './result/segmentation_results_V4_511'  # 基础输出结果目录
-
-    # 从模型文件名中提取信息
+    # 根据模型文件名生成输出目录名称
     model_filename = os.path.basename(model_path)
     base_output_dir = f"./result/segmentation_results_{os.path.splitext(model_filename)[0]}"
     print(f"📂 Expected output to ➡️ {base_output_dir}")
