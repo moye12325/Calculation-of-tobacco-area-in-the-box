@@ -18,7 +18,8 @@ import torchvision.transforms.functional as TF
 from config import Config
 
 # 新建联合数据增强函数（确保图像和 mask 同步增强）
-def joint_transforms(image, mask, image_size):
+# 新增参数 crop_size，如果传入则进行随机裁剪
+def joint_transforms(image, mask, image_size, crop_size=None):
     # 随机水平翻转
     if random.random() > 0.5:
         image = TF.hflip(image)
@@ -27,12 +28,17 @@ def joint_transforms(image, mask, image_size):
     if random.random() > 0.5:
         image = TF.vflip(image)
         mask = TF.vflip(mask)
-    # 随机旋转（例如：90 度倍数旋转）
+    # 随机旋转（例如：0、90、180、270 度中的一个）
     angle = random.choice([0, 90, 180, 270])
     if angle:
         image = TF.rotate(image, angle)
         mask = TF.rotate(mask, angle)
-    # 改变尺寸：图像用双线性插值，mask 用最近邻插值
+    # 若指定了随机裁剪尺寸，则进行随机裁剪
+    if crop_size is not None:
+        i, j, h, w = transforms.RandomCrop.get_params(image, output_size=crop_size)
+        image = TF.crop(image, i, j, h, w)
+        mask = TF.crop(mask, i, j, h, w)
+    # 最后统一 Resize 到目标尺寸（图像用双线性插值，mask 用最近邻插值）
     image = TF.resize(image, image_size, interpolation=transforms.InterpolationMode.BILINEAR)
     mask = TF.resize(mask, image_size, interpolation=transforms.InterpolationMode.NEAREST)
     return image, mask
@@ -71,18 +77,3 @@ class ImageSegmentationDataset:
 
     def __len__(self):
         return len(self.file_list)
-
-# ======================= 修正 `transform_mask` 的示例（仅作为参考） =======================
-# image_size = (256, 256)
-# num_classes = 2  # 确保 `num_classes` 正确
-#
-# transform_image = transforms.Compose([
-#     transforms.Resize(image_size, interpolation=transforms.InterpolationMode.BILINEAR),
-#     transforms.ToTensor(),
-# ])
-#
-# transform_mask = transforms.Compose([
-#     transforms.Resize(image_size, interpolation=transforms.InterpolationMode.NEAREST),
-#     transforms.ToTensor(),
-#     lambda x: (x * 255).long().clamp(0, num_classes - 1)  # ✅ 限制到 `[0, num_classes-1]`
-# ])

@@ -21,6 +21,7 @@ from torchvision import transforms
 from my_dataset import ImageSegmentationDataset, joint_transforms  # 自定义数据集
 from NestedUNet import NestedUNet  # 模型定义文件
 from sklearn.model_selection import train_test_split
+from functools import partial
 
 # ======================= 1. 设备配置 =======================
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -35,7 +36,9 @@ params = {
     "patience": Config.TRAIN_PARAMS['patience'],
     "weight_decay": Config.TRAIN_PARAMS['weight_decay'],
     "image_size": Config.IMAGE_SIZE,
-    "model_version": Config.TRAIN_PARAMS['model_version']  # 🔴 手动更改大版本号（v1 → v2）
+    "model_version": Config.TRAIN_PARAMS['model_version'],  # 🔴 手动更改大版本号（v1 → v2）
+    # 新增随机裁剪尺寸（这里设置为目标尺寸的 80%，你可以根据需求调整）
+    "crop_size": (int(Config.IMAGE_SIZE[0] * 0.8), int(Config.IMAGE_SIZE[1] * 0.8))
 }
 
 # ======================= 3. 数据预处理 =======================
@@ -45,6 +48,10 @@ train_transform_image = transforms.Compose([
     transforms.Normalize(mean=[0.485, 0.456, 0.406],
                          std=[0.229, 0.224, 0.225])
 ])
+
+# 使用 partial 将 crop_size 参数传入 joint_transforms，仅用于训练集
+train_joint_transform = partial(joint_transforms, crop_size=params["crop_size"])
+
 # 训练集 mask 仅进行 ToTensor 和标签转换（joint_transforms 已经 Resize 过）
 train_transform_mask = transforms.Compose([
     transforms.ToTensor(),
@@ -77,12 +84,13 @@ train_files, val_files = train_test_split(image_files, test_size=0.2, random_sta
 # train_dataset = ImageSegmentationDataset(image_dir, mask_dir, train_files, transform_image, transform_mask)
 # val_dataset = ImageSegmentationDataset(image_dir, mask_dir, val_files, transform_image, transform_mask)
 
+
 # 创建数据集：训练集启用联合增强（包括 Resize），验证集则采用包含 Resize 的 transform
 train_dataset = ImageSegmentationDataset(
     image_dir, mask_dir, train_files,
     transform_image=train_transform_image,
     transform_mask=train_transform_mask,
-    joint_transform=joint_transforms,
+    joint_transform=train_joint_transform,
     image_size=params["image_size"]
 )
 val_dataset = ImageSegmentationDataset(
