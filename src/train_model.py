@@ -50,7 +50,7 @@ train_transform_image = transforms.Compose([
 ])
 
 # 使用 partial 将 crop_size 参数传入 joint_transforms，仅用于训练集
-train_joint_transform = partial(joint_transforms, crop_size=params["crop_size"])
+# train_joint_transform = partial(joint_transforms, crop_size=params["crop_size"])
 
 # 训练集 mask 仅进行 ToTensor 和标签转换（joint_transforms 已经 Resize 过）
 train_transform_mask = transforms.Compose([
@@ -90,7 +90,7 @@ train_dataset = ImageSegmentationDataset(
     image_dir, mask_dir, train_files,
     transform_image=train_transform_image,
     transform_mask=train_transform_mask,
-    joint_transform=train_joint_transform,
+    joint_transform=joint_transforms,
     image_size=params["image_size"]
 )
 val_dataset = ImageSegmentationDataset(
