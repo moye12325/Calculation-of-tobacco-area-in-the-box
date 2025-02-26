@@ -18,7 +18,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision import transforms
-from my_dataset import ImageSegmentationDataset  # 自定义数据集
+from my_dataset import ImageSegmentationDataset, joint_transforms  # 自定义数据集
 from NestedUNet import NestedUNet  # 模型定义文件
 from sklearn.model_selection import train_test_split
 
@@ -39,12 +39,26 @@ params = {
 }
 
 # ======================= 3. 数据预处理 =======================
-transform_image = transforms.Compose([
-    transforms.Resize(params["image_size"], interpolation=transforms.InterpolationMode.BILINEAR),
+# -------------- 训练集预处理（先使用联合数据增强，再进行 ToTensor 与归一化） --------------
+train_transform_image = transforms.Compose([
     transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                         std=[0.229, 0.224, 0.225])
+])
+# 训练集 mask 仅进行 ToTensor 和标签转换（joint_transforms 已经 Resize 过）
+train_transform_mask = transforms.Compose([
+    transforms.ToTensor(),
+    lambda x: (x * 255).long().clamp(0, params["num_classes"] - 1)
 ])
 
-transform_mask = transforms.Compose([
+# -------------- 验证集预处理（需要 Resize 到固定尺寸，再进行 ToTensor 与归一化） --------------
+val_transform_image = transforms.Compose([
+    transforms.Resize(params["image_size"], interpolation=transforms.InterpolationMode.BILINEAR),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                         std=[0.229, 0.224, 0.225])
+])
+val_transform_mask = transforms.Compose([
     transforms.Resize(params["image_size"], interpolation=transforms.InterpolationMode.NEAREST),
     transforms.ToTensor(),
     lambda x: (x * 255).long().clamp(0, params["num_classes"] - 1)
@@ -60,8 +74,23 @@ image_files = sorted(os.listdir(image_dir))
 # 按 80% 训练，20% 验证划分
 train_files, val_files = train_test_split(image_files, test_size=0.2, random_state=42)
 
-train_dataset = ImageSegmentationDataset(image_dir, mask_dir, train_files, transform_image, transform_mask)
-val_dataset = ImageSegmentationDataset(image_dir, mask_dir, val_files, transform_image, transform_mask)
+# train_dataset = ImageSegmentationDataset(image_dir, mask_dir, train_files, transform_image, transform_mask)
+# val_dataset = ImageSegmentationDataset(image_dir, mask_dir, val_files, transform_image, transform_mask)
+
+# 创建数据集：训练集启用联合增强（包括 Resize），验证集则采用包含 Resize 的 transform
+train_dataset = ImageSegmentationDataset(
+    image_dir, mask_dir, train_files,
+    transform_image=train_transform_image,
+    transform_mask=train_transform_mask,
+    joint_transform=joint_transforms,
+    image_size=params["image_size"]
+)
+val_dataset = ImageSegmentationDataset(
+    image_dir, mask_dir, val_files,
+    transform_image=val_transform_image,
+    transform_mask=val_transform_mask
+    # 验证集未传入 joint_transform，直接在 transform 中完成 Resize
+)
 
 train_loader = DataLoader(train_dataset, batch_size=params["batch_size"], shuffle=True, num_workers=4)
 val_loader = DataLoader(val_dataset, batch_size=params["batch_size"], shuffle=False, num_workers=4)

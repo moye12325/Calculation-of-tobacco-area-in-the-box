@@ -40,7 +40,7 @@ class Config:
         "test_split": 0.2,
         "random_state": 42,
         "num_workers": 4,
-        "model_version": "V4"
+        "model_version": "V5"
     }
 
     # ======================= 推理参数 =======================
