@@ -29,6 +29,8 @@ model_filename = os.path.basename(model_files[0])
 
 # 动态生成保存路径
 segmentation_base_dir = f"./result/segmentation_results_{os.path.splitext(model_filename)[0]}"
+print(f"📂 Expected Loading to ➡️ {segmentation_base_dir}")
+
 overlay_base_dir = f"./result/overlay_results_{os.path.splitext(model_filename)[0]}"
 print(f"📂 Expected output to ➡️ {overlay_base_dir}")
 
@@ -97,18 +99,3 @@ for input_dir in input_dirs:
         concurrent.futures.wait(futures)  # 等待所有任务完成
 
 print(f"\n✅ Batch processing completed! All overlay images saved in '{overlay_base_dir}' 🚀")
-
-# # 遍历所有文件夹，并行处理
-# for input_dir, seg_dir in zip(input_dirs, segmentation_dirs):
-#     output_dir = os.path.join(output_root, os.path.basename(input_dir))
-#     os.makedirs(output_dir, exist_ok=True)  # 创建对应的输出目录
-#
-#     # 获取当前目录下的所有原始图片文件
-#     image_files = sorted([f for f in os.listdir(input_dir) if f.lower().endswith(('.png', '.jpg', '.jpeg'))])
-#
-#     # 使用多线程处理
-#     with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
-#         futures = [executor.submit(process_image, input_dir, seg_dir, output_dir, image_file) for image_file in image_files]
-#         concurrent.futures.wait(futures)  # 等待所有任务完成
-#
-# print("\n✅ Batch processing completed! All overlay images saved in './overlay_results/' 🚀")
