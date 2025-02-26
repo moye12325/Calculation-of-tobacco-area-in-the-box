@@ -67,26 +67,41 @@ def joint_transforms_albu(image, mask, image_size, crop_size=None):
 
     # 构建增强流水线列表
     transform_list = [
-        A.HorizontalFlip(p=0.5),
-        A.VerticalFlip(p=0.5),
-        A.RandomRotate90(p=0.5),
+        A.HorizontalFlip(p=0.5), # 以50%的概率对图像进行水平翻转（左右镜像）
+        A.VerticalFlip(p=0.5), # 以50%的概率对图像进行垂直翻转（上下颠倒）。
+        A.RandomRotate90(p=0.5), # 随机90度旋转
+
+        # shift_limit=0.0625: 平移范围为图像宽/高的±6.25%。
+        # scale_limit=0.1: 随机缩放图像，范围为原始大小的 ±10%（即 0.9~1.1 倍）。
+        # rotate_limit=45: 随机旋转角度范围为±45度。
         A.ShiftScaleRotate(shift_limit=0.0625, scale_limit=0.1, rotate_limit=45, p=0.5),
+
+        # scale=(0.05, 0.1): 控制透视形变强度，值越大形变越明显。
+        # 作用: 以50%概率对图像进行3D视角变换（如远小近大效果）。
         A.Perspective(scale=(0.05, 0.1), p=0.5),
-        # 注意：新版中 alpha_affine 参数已移除，此处不再传入
+
+        # alpha=1: 形变强度，值越大扭曲越明显。
+        # sigma=50: 控制形变的平滑度，值越大形变越平缓。
+        # 作用: 以50%概率生成类似“局部拉伸”或“褶皱”的弹性形变
         A.ElasticTransform(alpha=1, sigma=50, p=0.5)
     ]
 
     # 如果指定裁剪尺寸，执行随机裁剪
+    # 随机裁剪到指定的尺寸，裁剪操作一定会执行（p=1.0）。
     if crop_size is not None:
         transform_list.append(A.RandomCrop(height=crop_size[0], width=crop_size[1], p=1.0))
 
-    # 添加颜色和亮度调整（仅对图像有效）
+    # 使用 A.OneOf 从以下两种颜色调整操作中随机选择一种
+    # 1. A.ColorJitter: 随机调整亮度±20%、对比度±20%、饱和度±20%和色调±0.1
+    # 2. A.RandomBrightnessContrast: 随机调整亮度±20%和对比度±20%
     transform_list.append(A.OneOf([
         A.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
         A.RandomBrightnessContrast(brightness_limit=0.2, contrast_limit=0.2)
     ], p=0.5))
 
     # 添加噪声和模糊操作
+    # 以 30% 的概率对图像进行高斯模糊，模糊核大小随机在 3×3 到 7×7 之间
+    # 以 30% 的概率向图像添加高斯噪声，噪声方差范围为 10 到 50。
     transform_list.extend([
         A.GaussianBlur(blur_limit=(3, 7), p=0.3),
         A.GaussNoise(var_limit=(10.0, 50.0), p=0.3)
